@@ -41,8 +41,9 @@ pealim_to_jinja = {
     "INF-L": "inf"
 }
 
-
 def print_shoresh(shoresh: str):
+    if not shoresh:
+        return
     shoresh = shoresh.replace("-", "־")
     shoresh = "".join(shoresh.split())
     print(shoresh)
@@ -54,6 +55,8 @@ def convert_verb(soup):
     shoresh = soup.find("span", class_="menukad").text
     definition = soup.find("div", class_="lead").text
 
+    inf = None
+
     for peal, jinj in pealim_to_jinja.items():
         div = soup.find("div", id=peal)
         word = div.find("span", class_="menukad").text
@@ -61,12 +64,25 @@ def convert_verb(soup):
         td = f"<ruby>{word}<rt>{pron}</rt></ruby>"
         out_dict[jinj] = td
 
+        if peal == "INF-L":
+            inf = word
+
     print(template.render(
         **out_dict
     ))
 
-    print_shoresh(shoresh)
+    print(inf)
     print(definition)
+    print_shoresh(shoresh)
+
+    print("פָּעַ") # pa'al
+    print("פִּעֵ") # pi'el
+    print("הִפְ") # hif'il
+    print("הִתְ") # hitpa'el
+    print("נִפְ") # niph'al
+    # print("פֻּעַ") # pu'al
+    # print("הֻפְ") # huf'al
+
 
 
 def convert_noun(soup):
@@ -89,12 +105,11 @@ def convert_noun(soup):
         if p.text.startswith("Noun"):
             gender = "נ" if "fem" in p.text.split(" ")[-1] else "ז"
 
-    print_shoresh(shoresh)
-    print(gender)
-    print(definition)
     print(singular)
+    print(definition)
+    print(gender)
+    print_shoresh(shoresh)
     print(plural)
-
     print(f"{singular_pr}, {plural_pr}")
 
 
@@ -120,12 +135,11 @@ def convert_adj(soup):
 
     gender = "ז"
 
-    print_shoresh(shoresh)
-    print(gender)
-    print(definition)
     print(f"{m_singular} / {f_singular}")
+    print(definition)
+    print(gender)
+    print_shoresh(shoresh)
     print(f"{m_plural} / {f_plural}")
-
     print(f"{m_singular_pr} / {f_singular_pr}")
     print(f"{m_plural_pr} / {f_plural_pr}")
 
