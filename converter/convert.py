@@ -1,3 +1,4 @@
+from typing import List, NamedTuple
 from bs4 import BeautifulSoup as bs
 import requests
 from jinja2 import Environment, FileSystemLoader
@@ -42,15 +43,68 @@ pealim_to_jinja = {
 }
 
 
-def print_shoresh(shoresh: str):
+class HebrewCard(NamedTuple):
+    Hebrew: str
+    Definition: str
+    Gender: str
+    PartOfSpeech: str
+    Shoresh: str
+    Audio: str
+    Inflections: str
+    Extended: str
+    Image: str
+
+    def __post_init__(self):
+        """Perform validation on Gender, PartOfSpeech"""
+        if self.Gender not in ["", "נ", "ז", "פָּעַ", "פִּעֵ", "הִפְ", "הִתְ", "נִפְ"]:
+            self.Gender = ""
+
+        if self.PartOfSpeech not in ["n", "v", "a", ""]:
+            self.PartOfSpeech = ""
+
+    def to_list(self) -> List[str]:
+        return [
+            self.Hebrew,
+            self.Definition,
+            self.Gender,
+            self.PartOfSpeech,
+            self.Shoresh,
+            self.Audio,
+            self.Inflections,
+            self.Extended,
+            self.Image,
+        ]
+
+
+def convert_shoresh(shoresh: str) -> str:
     if not shoresh:
         return
     shoresh = shoresh.replace("-", "־")
     shoresh = "".join(shoresh.split())
-    print(shoresh)
+    return shoresh
 
 
-def convert_verb(soup):
+def extract_binyan(text: str):
+    upper = text.upper()
+    if "PA'AL" in upper:
+        return "פָּעַ"  # pa'al
+    elif "PI'EL" in upper:
+        return "פִּעֵ"
+    elif "HIF'IL" in upper:
+        return "הִפְ"
+    elif "HITPA'EL" in upper:
+        return "הִתְ"
+    elif "NIF'AL" in upper:
+        return "נִפְ"
+    elif "PU'AL" in upper:
+        return "פֻּעַ"
+    elif "HUF'AL" in upper:
+        return "הֻפְ"
+    else:
+        return ""
+
+
+def convert_verb(soup) -> HebrewCard:
     out_dict = {}
 
     shoresh = soup.find("span", class_="menukad").text
@@ -68,11 +122,20 @@ def convert_verb(soup):
         if peal == "INF-L":
             inf = word
 
-    print(template.render(**out_dict))
+    binyan_p = soup.find("h2", class_="page-header").nextSibling
+    binyan = extract_binyan(binyan_p)
 
-    print(inf)
-    print(definition)
-    print_shoresh(shoresh)
+    return HebrewCard(
+        Hebrew=inf,
+        Definition=definition,
+        Gender=binyan,
+        PartOfSpeech="v",
+        Shoresh=convert_shoresh(shoresh),
+        Audio="",
+        Inflections=template.render(**out_dict),
+        Extended="",
+        Image="",
+    )
 
     print("פָּעַ")  # pa'al
     print("פִּעֵ")  # pi'el
@@ -83,7 +146,7 @@ def convert_verb(soup):
     # print("הֻפְ") # huf'al
 
 
-def convert_noun(soup):
+def convert_noun(soup) -> HebrewCard:
     shoresh = None
     for p in soup.find_all("p"):
         if p.text.startswith("Root:"):
@@ -101,14 +164,21 @@ def convert_noun(soup):
     gender = None
     for p in soup.find_all("p"):
         if p.text.startswith("Noun"):
-            gender = "נ" if "fem" in p.text.split(" ")[-1] else "ז"
+            gender_field = p.text.split(" ")[-1]
+            gender = "נ" if "fem" in gender_field else ""
+            gender = "ז" if "mas" in gender_field else ""
 
-    print(singular)
-    print(definition)
-    print(gender)
-    print_shoresh(shoresh)
-    print(plural)
-    print(f"{singular_pr}, {plural_pr}")
+    return HebrewCard(
+        Hebrew=singular,
+        Definition=definition,
+        Gender=gender,  # TODO
+        PartOfSpeech="n",
+        Shoresh=convert_shoresh(shoresh),
+        Audio="",
+        Inflections=plural,
+        Extended=f"{singular_pr}, {plural_pr}",
+        Image="",
+    )
 
 
 def convert_adj(soup):
@@ -131,31 +201,41 @@ def convert_adj(soup):
     f_plural = t1.find("div", id="fp-a").find("span", class_="menukad").parent.text
     f_plural_pr = t1.find("div", id="fp-a").find("div", class_="transcription").text
 
-    gender = "ז"
+    gender = ""
 
-    print(f"{m_singular} / {f_singular}")
-    print(definition)
-    print(gender)
-    print_shoresh(shoresh)
-    print(f"{m_plural} / {f_plural}")
-    print(f"{m_singular_pr} / {f_singular_pr}")
-    print(f"{m_plural_pr} / {f_plural_pr}")
+    return HebrewCard(
+        Hebrew=f"{m_singular} / {f_singular}",
+        Definition=definition,
+        Gender=gender,
+        PartOfSpeech="n",
+        Shoresh=convert_shoresh(shoresh),
+        Audio="",
+        Inflections=f"{m_plural} / {f_plural}",
+        Extended=f"{m_singular_pr} / {f_singular_pr}\n{m_plural_pr} / {f_plural_pr}",
+        Image="",
+    )
 
 
-valid_pos = ["v", "n", "a"]
+def extract_pos(text: str):
+    if "noun" in text.lower():
+        return convert_noun
+    if "verb" in text.lower():
+        return convert_verb
+    if "adjective" in text.lower():
+        return convert_adj
+
+
+def translate(url):
+    resp = requests.get(url)
+    soup = bs(resp.content, features="html.parser")
+
+    pos_p = soup.find("h2", class_="page-header").nextSibling
+    fun = extract_pos(pos_p.text)
+
+    fun(soup)
+
 
 if __name__ == "__main__":
     url = sys.argv[2]
     pos = sys.argv[1]
-    if pos not in valid_pos:
-        sys.exit(0)
-
-    resp = requests.get(url)
-    soup = bs(resp.content, features="html.parser")
-
-    if pos == "v":
-        convert_verb(soup)
-    elif pos == "n":
-        convert_noun(soup)
-    elif pos == "a":
-        convert_adj(soup)
+    translate(url)
