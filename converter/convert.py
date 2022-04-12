@@ -8,7 +8,7 @@ templates_dir = Path(__file__).parent.parent / "templates"
 templates_dir = templates_dir.absolute()
 
 env = Environment(loader=FileSystemLoader(templates_dir))
-template = env.get_template('verb_he_en.html')
+template = env.get_template("verb_he_en.html")
 
 pealim_to_jinja = {
     "AP-ms": "p_x_s_m",
@@ -38,8 +38,9 @@ pealim_to_jinja = {
     "IMP-2fs": "im_2_s_f",
     "IMP-2mp": "im_2_p_m",
     "IMP-2fp": "im_2_p_f",
-    "INF-L": "inf"
+    "INF-L": "inf",
 }
+
 
 def print_shoresh(shoresh: str):
     if not shoresh:
@@ -67,22 +68,19 @@ def convert_verb(soup):
         if peal == "INF-L":
             inf = word
 
-    print(template.render(
-        **out_dict
-    ))
+    print(template.render(**out_dict))
 
     print(inf)
     print(definition)
     print_shoresh(shoresh)
 
-    print("פָּעַ") # pa'al
-    print("פִּעֵ") # pi'el
-    print("הִפְ") # hif'il
-    print("הִתְ") # hitpa'el
-    print("נִפְ") # niph'al
+    print("פָּעַ")  # pa'al
+    print("פִּעֵ")  # pi'el
+    print("הִפְ")  # hif'il
+    print("הִתְ")  # hitpa'el
+    print("נִפְ")  # niph'al
     # print("פֻּעַ") # pu'al
     # print("הֻפְ") # huf'al
-
 
 
 def convert_noun(soup):
@@ -142,7 +140,6 @@ def convert_adj(soup):
     print(f"{m_plural} / {f_plural}")
     print(f"{m_singular_pr} / {f_singular_pr}")
     print(f"{m_plural_pr} / {f_plural_pr}")
-
 
 
 valid_pos = ["v", "n", "a"]
