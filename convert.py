@@ -3,9 +3,8 @@ from bs4 import BeautifulSoup as bs
 import requests
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
-import sys
 
-templates_dir = Path(__file__).parent.parent / "templates"
+templates_dir = Path(__file__).parent
 templates_dir = templates_dir.absolute()
 
 env = Environment(loader=FileSystemLoader(templates_dir))
@@ -122,7 +121,7 @@ def convert_verb(soup) -> HebrewCard:
         if peal == "INF-L":
             inf = word
 
-    binyan_p = soup.find("h2", class_="page-header").nextSibling
+    binyan_p = get_subheader(soup)
     binyan = extract_binyan(binyan_p)
 
     return HebrewCard(
@@ -137,14 +136,6 @@ def convert_verb(soup) -> HebrewCard:
         Image="",
     )
 
-    print("פָּעַ")  # pa'al
-    print("פִּעֵ")  # pi'el
-    print("הִפְ")  # hif'il
-    print("הִתְ")  # hitpa'el
-    print("נִפְ")  # niph'al
-    # print("פֻּעַ") # pu'al
-    # print("הֻפְ") # huf'al
-
 
 def convert_noun(soup) -> HebrewCard:
     shoresh = None
@@ -158,8 +149,12 @@ def convert_noun(soup) -> HebrewCard:
 
     singular = t1.find("div", id="s").find("span", class_="menukad").text
     singular_pr = t1.find("div", id="s").find("div", class_="transcription").text
-    plural = t1.find("div", id="p").find("span", class_="menukad").text
-    plural_pr = t1.find("div", id="p").find("div", class_="transcription").text
+
+    plural_div = t1.find("div", id="p")
+    plural, plural_pr = "", ""
+    if plural_div is not None:
+        plural = plural_div.find("span", class_="menukad").text
+        plural_pr = plural_div.find("div", class_="transcription").text
 
     gender = None
     for p in soup.find_all("p"):
@@ -225,17 +220,15 @@ def extract_pos(text: str):
         return convert_adj
 
 
-def translate(url):
+def get_subheader(soup) -> str:
+    return soup.find("h2", class_="page-header").nextSibling.text
+
+
+def translate(url) -> List[str]:
     resp = requests.get(url)
     soup = bs(resp.content, features="html.parser")
 
-    pos_p = soup.find("h2", class_="page-header").nextSibling
-    fun = extract_pos(pos_p.text)
+    pos_p = get_subheader(soup)
+    fun = extract_pos(pos_p)
 
-    fun(soup)
-
-
-if __name__ == "__main__":
-    url = sys.argv[2]
-    pos = sys.argv[1]
-    translate(url)
+    return fun(soup).to_list()
